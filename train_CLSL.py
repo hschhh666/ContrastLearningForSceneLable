@@ -118,16 +118,26 @@ def get_train_loader(args):
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle= True, num_workers=args.num_workers, pin_memory=True)
 
     # 获得某类物体的图片索引，图片索引以set的形式保存
-    classInstansSet = []
+    classInstansSet_tmp = []
     tmpSet = set()
     last_t = 0
-    for i,t in enumerate(train_dataset.targets):
+    for i,t in enumerate(train_dataset.targets):# targets的总数就是图片的总个数，targets里的每个值表示是该照片是第几类。targets是按顺序排列的
         if last_t != t:
-            classInstansSet.append(tmpSet.copy())
+            classInstansSet_tmp.append(tmpSet.copy())
             tmpSet.clear()
         last_t = t
         tmpSet.add(i)
-    classInstansSet.append(tmpSet)
+    classInstansSet_tmp.append(tmpSet)# 把最后一个添加进去
+
+    class_keys = list(train_dataset.class_to_idx.keys())#获取所有key，即类的文件夹名字，也即锚点的帧数
+    class_keys = [int(i) for i in class_keys]# 转换成int，以便后续排序
+    class_keys.sort()# 按照锚点的先后顺序排序
+    class_keys = [str(i) for i in class_keys]# 再转换成string
+
+    classInstansSet = classInstansSet_tmp.copy()
+    for i,j in enumerate(class_keys):
+        idx = train_dataset.class_to_idx[j]# j 是文件夹名字。获取某文件对应的类的id
+        classInstansSet[i] = classInstansSet_tmp[idx] # 文件夹已经按顺序排列过了，所以此时classInstanceSet这个列表的索引就是按照文件夹顺序的
 
     n_data = len(train_dataset)
     print('number of samples: {}'.format(n_data))
