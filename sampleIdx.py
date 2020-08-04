@@ -21,6 +21,7 @@ class SampleIndex(object):
                 negIdx += self.classInstansSet[t.item()-1]
             if t != self.class_num - 1:
                 negIdx += self.classInstansSet[t.item()+1]
+            negIdx = random.sample(negIdx, N)
             # negIdx = random.sample(self.datasetIdx - self.classInstansSet[t.item()], N)
             index.append(posIdx + negIdx)
 
