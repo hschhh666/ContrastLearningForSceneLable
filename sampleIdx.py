@@ -17,10 +17,21 @@ class SampleIndex(object):
         for t in targets:
             posIdx = random.sample(self.classInstansSet[t.item()],1)
             negIdx = []
-            if t != 0:
-                negIdx += self.classInstansSet[t.item()-1]
-            if t != self.class_num - 1:
+            if t == 0:
                 negIdx += self.classInstansSet[t.item()+1]
+                negIdx += self.classInstansSet[self.class_num - 1]
+            elif t == self.class_num - 1:
+                negIdx += self.classInstansSet[t.item()-1]
+                negIdx += self.classInstansSet[0]
+            else:
+                negIdx += self.classInstansSet[t.item()-1]
+                negIdx += self.classInstansSet[t.item()+1]
+
+            # if t != 0:
+            #     negIdx += self.classInstansSet[t.item()-1]
+            # if t != self.class_num - 1:
+            #     negIdx += self.classInstansSet[t.item()+1]
+            
             negIdx = random.sample(negIdx, N)
             # negIdx = random.sample(self.datasetIdx - self.classInstansSet[t.item()], N)
             index.append(posIdx + negIdx)
