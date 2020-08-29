@@ -20,11 +20,12 @@ import tensorboard_logger as tb_logger
 
 from dataset import ImageFolderInstance
 from models.alexnet import MyAlexNetCMC
-from NCE.NCEAverage import NCEAverage
+from NCE.NCEAverage import NCEAverage, E2EAverage
 from NCE.NCECriterion import NCECriterion
 from NCE.NCECriterion import NCESoftmaxLoss
 
 from util import adjust_learning_rate, AverageMeter,print_running_time
+from sampleIdx import SampleIndex
 
 
 def parse_option():
@@ -37,6 +38,7 @@ def parse_option():
     parser.add_argument('--batch_size', type=int, default=128, help='batch_size')
     parser.add_argument('--num_workers', type=int, default=18, help='num of workers to use')
     parser.add_argument('--epochs', type=int, default=240, help='number of training epochs')
+    parser.add_argument('--contrastMethod', type=str, default='e2e',choices=['e2e', 'membank'], help='method of contrast, e2e or membank')
 
     # optimization
     parser.add_argument('--learning_rate', type=float, default=0.03, help='learning rate')
@@ -81,8 +83,8 @@ def parse_option():
 
     curTime = time.strftime("%Y%m%d_%H_%M_%S", time.localtime())
     print('start program at ' + time.strftime("%Y_%m_%d %H:%M:%S", time.localtime()))
-    opt.model_name = '{}_lossMethod_{}_NegNum_{}_Model_{}_lr_{}_decay_{}_bsz_{}'.format(curTime, opt.method, opt.nce_k, opt.model, opt.learning_rate,
-                                                                    opt.weight_decay, opt.batch_size)
+    opt.model_name = '{}_lossMethod_{}_NegNum_{}_Model_{}_lr_{}_decay_{}_bsz_{}_contrasMethod_{}'.format(curTime, opt.method, opt.nce_k, opt.model, opt.learning_rate,
+                                                                    opt.weight_decay, opt.batch_size, opt.contrastMethod)
 
     if (opt.data_folder is None) or (opt.model_path is None) or (opt.tb_path is None):
         raise ValueError('one or more of the folders is None: data_folder | model_path | tb_path')
@@ -97,6 +99,9 @@ def parse_option():
 
     if not os.path.isdir(opt.data_folder):
         raise ValueError('data path not exist: {}'.format(opt.data_folder))
+
+    if opt.contrastMethod != 'e2e' and opt.contrastMethod != 'membank':
+        raise ValueError('contrast method must be e2e or memory bank.')
 
     return opt
 
@@ -134,20 +139,28 @@ def get_train_loader(args):
     class_keys.sort()# 按照锚点的先后顺序排序
     class_keys = [str(i) for i in class_keys]# 再转换成string
 
+    target2target = class_keys.copy() #这个赋值没有任何意义，只是为了让targe2target的形状和他一样
     classInstansSet = classInstansSet_tmp.copy()
     for i,j in enumerate(class_keys):
         idx = train_dataset.class_to_idx[j]# j 是文件夹名字。获取某文件对应的类的id
         classInstansSet[i] = classInstansSet_tmp[idx] # 文件夹已经按顺序排列过了，所以此时classInstanceSet这个列表的索引就是按照文件夹顺序的
+        target2target[idx] = i #pytorch的target排序并不是按照文件夹名字排序的，但是我的classInstanceSet的顺序就是文件夹名的顺序，所以这里需要做一个映射，就是pytorch的原始target映射到按文件夹名排序时的target
 
     n_data = len(train_dataset)
     print('number of samples: {}'.format(n_data))
 
-    return train_loader, n_data, classInstansSet
+    return train_loader, n_data, classInstansSet,target2target, train_dataset
 
 def set_model(args, n_data, classInstansSet):
 
     model = MyAlexNetCMC(args.feat_dim)
-    contrast = NCEAverage(args.feat_dim, n_data,classInstansSet,args.nce_k, args.nce_t, args.nce_m, args.softmax)
+    
+    contrast = 'placeholder'
+    if args.contrastMethod == 'membank':
+        contrast = NCEAverage(args.feat_dim, n_data,classInstansSet,args.nce_k, args.nce_t, args.nce_m, args.softmax)
+    elif args.contrastMethod == 'e2e':
+        contrast = E2EAverage(args.nce_k, n_data, args.nce_t, args.softmax)
+
 
     criterion = NCESoftmaxLoss() if args.softmax else NCECriterion(n_data)
 
@@ -167,7 +180,62 @@ def set_optimizer(args, model):
                                 weight_decay=args.weight_decay)
     return optimizer
 
-def train(epoch,train_loader, model, contrast, criterion, optimizer, opt):
+def train_e2e(epoch,train_loader,train_dataset,target2target, model, contrast, sampleIndex, criterion, optimizer, opt):
+    model.train()
+
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
+    probs = AverageMeter()
+
+    end = time.time()
+    for idx,(img, target, index) in enumerate(train_loader):
+        data_time.update(time.time() - end)
+        target = torch.tensor([target2target[i] for i in target],dtype=torch.int) #这里一定要做一个转换的，因为pytorch的target和我想要的target是不一样的。我想要的target是按照文件夹名称排序的，但是pytorch的target不是这样排序的。
+
+        img = sampleIndex.getAndCatAnchorPosNeg(target,opt.nce_k,img,train_dataset) # img的size是batchSize*(1+1+N),分别是anchor，pos，neg
+
+        bsz = img.size(0)
+        if torch.cuda.is_available():
+            index = index.cuda()
+            img = img.cuda()
+
+        # ===================forward=====================
+        feat = feat = model(img)
+        mutualInfo = contrast(feat)
+        loss = criterion(mutualInfo)
+        prob = mutualInfo[:,0].mean()
+
+        # ===================backward=====================
+        optimizer.zero_grad()
+        loss.backward()
+        optimizer.step()
+
+        # ===================meters=====================
+        losses.update(loss.item(), bsz)
+        probs.update(prob.item(), bsz)
+
+        if torch.cuda.is_available():
+            torch.cuda.synchronize()
+        batch_time.update(time.time() - end)
+        end = time.time()
+
+        # print info
+        if (idx + 1) % opt.print_freq == 0:
+            print('Train: [{0}][{1}/{2}]\t'
+                  'BT {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                  'DT {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                  'loss {loss.val:.3f} ({loss.avg:.3f})\t'
+                  'p {probs.val:.3f} ({probs.avg:.3f})'.format(
+                   epoch, idx + 1, len(train_loader), batch_time=batch_time,
+                   data_time=data_time, loss=losses, probs=probs,))
+            sys.stdout.flush()
+
+    return losses.avg, probs.avg
+
+
+
+def train_mem_bank(epoch,train_loader,target2target, model, contrast, criterion, optimizer, opt):
     model.train()
     contrast.train()
 
@@ -179,6 +247,7 @@ def train(epoch,train_loader, model, contrast, criterion, optimizer, opt):
     end = time.time()
     for idx,(img, target, index) in enumerate(train_loader):
         data_time.update(time.time() - end)
+        target = torch.tensor([target2target[i] for i in target],dtype=torch.int) #这里一定要做一个转换的，因为pytorch的target和我想要的target是不一样的。我想要的target是按照文件夹名称排序的，但是pytorch的target不是这样排序的。
 
         bsz = img.size(0)
         img = img.float()
@@ -226,7 +295,7 @@ def main():
     args.start_epoch = 1
 
     # set the loader
-    train_loader, n_data, classInstansSet= get_train_loader(args)
+    train_loader, n_data, classInstansSet,target2target, train_dataset= get_train_loader(args)
 
     # set the model
     model, contrast, criterion = set_model(args,n_data,classInstansSet)
@@ -240,10 +309,14 @@ def main():
     # train by epoch
     print('start training at ' + time.strftime("%Y_%m_%d %H:%M:%S", time.localtime()))
     start_time = time.time()
+    sampleIdx = SampleIndex(classInstansSet)
     for epoch in range(args.start_epoch, args.epochs + 1):
         adjust_learning_rate(epoch, args, optimizer)
 
-        loss, prob = train(epoch, train_loader, model, contrast, criterion, optimizer, args)
+        if args.contrastMethod == 'e2e':
+            loss, prob = train_e2e(epoch, train_loader,train_dataset,target2target, model, contrast, sampleIdx, criterion, optimizer, args)
+        else:
+            loss, prob = train_mem_bank(epoch, train_loader,target2target, model, contrast, criterion, optimizer, args)
 
         print_running_time(start_time)
 

@@ -41,6 +41,20 @@ class SampleIndex(object):
             index = index.cuda()
         return index # 这里的size为batch_size * (N + 1)，其中N为负样本的个数。每行第0个数是正样本索引
     
+    def getAndCatAnchorPosNeg(self, targets, N, anchor, dataset): # 输入batchSize张anchor image, 输出 batchSize + batchSize*(1+N)张照片，batchSize是anchor image，batchSize*(1+N)中，对于每个batch，第一个是pos，剩下N个是neg
+        index = self.getRandomIdx(targets,N)
+        bsz = anchor.size(0)
+        img = torch.ones(bsz*(N+2),anchor.size(1),anchor.size(2),anchor.size(3))
+        img[0:bsz] = anchor
+        count = bsz
+        for idx in index:
+            for i in idx:
+                img[count] = dataset[i][0]
+                count += 1
+        return img
+
+
+    
     def getNPosIdx(self, targets,n=1):# targets的尺寸是batch_size*1, 表明该batch中每个图片所述类别。对每个图片，采样n个它所对应的正样本
         index = []
         for t in targets:

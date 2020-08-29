@@ -52,6 +52,49 @@ class NCEAverage(nn.Module):
 
         return mutualInfo
 
+# =========================
+# End to End method
+# =========================
+class E2EAverage(nn.Module):
+    def __init__(self, K, outputSize, T=0.07, use_softmax=False):
+        super(E2EAverage, self).__init__()
+        self.use_softmax = use_softmax
+        self.register_buffer('params', torch.tensor([K, T, -1,outputSize]))
+    
+    def forward(self, feat):
+        K = int(self.params[0].item())
+        T = self.params[1].item()
+        Z = self.params[2].item()
+        outputSize = self.params[3].item()
+
+        featNum = feat.size(0)
+        bsz = featNum // (K+2) #  每个anchor对应一个pos和K个neg，即(K+2)个是一组。
+        featSize = feat.size(1) # 获取特征的维度
+        mutualInfo = torch.ones(bsz,K+1,1) # 这个size和基于memory bank的方法是一致的，也别问为啥了，反正一样就能用。
+        if torch.cuda.is_available():
+            mutualInfo = mutualInfo.cuda()
+        for i in range(bsz):#逐个计算每张照片与其正负样本的距离
+            anchor = feat[i].view(featSize,-1) # 这里相当于扩维+矩阵转置
+            pos = feat[bsz + i*(K+1)].view(1,-1)# 扩充维度
+            neg = feat[(bsz + i*(K+1) + 1):(bsz + i*(K+1) + 1 + 30)] #选择
+            sampleFeat = torch.cat((pos,neg),0)
+            mi = torch.mm(sampleFeat, anchor)
+            mutualInfo[i] = mi
+        
+        if self.use_softmax:
+            mutualInfo = torch.div(mutualInfo, T)
+            mutualInfo = mutualInfo.contiguous()
+        else:
+            mutualInfo = torch.exp(torch.div(mutualInfo, T))
+            # Z是归一化因子，这里取的是常数。计算方法是第一次算出来的互信息的均值
+            if Z < 0:
+                self.params[2] = mutualInfo.mean() * outputSize
+                Z = self.params[2].clone().detach().item()
+                print("normalization constant Z is set to {:.1f}".format(Z))
+            mutualInfo = torch.div(mutualInfo, Z).contiguous()
+            
+        return mutualInfo
+
 
 # =========================
 # InsDis and MoCo
