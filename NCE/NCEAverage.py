@@ -76,7 +76,7 @@ class E2EAverage(nn.Module):
         for i in range(bsz):#逐个计算每张照片与其正负样本的距离
             anchor = feat[i].view(featSize,-1) # 这里相当于扩维+矩阵转置
             pos = feat[bsz + i*(K+1)].view(1,-1)# 扩充维度
-            neg = feat[(bsz + i*(K+1) + 1):(bsz + i*(K+1) + 1 + 30)] #选择
+            neg = feat[(bsz + i*(K+1) + 1):(bsz + i*(K+1) + 1 + K)] #选择
             sampleFeat = torch.cat((pos,neg),0)
             mi = torch.mm(sampleFeat, anchor)
             mutualInfo[i] = mi
