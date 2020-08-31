@@ -132,7 +132,7 @@ def getFeatMem(model, data_loader,n_data): # 计算所有数据的feature，并�
         feat = model(img)
         with torch.no_grad():#得加这句话，要不显存跑着跑着就不够了
             memory.index_copy_(0,index,feat) 
-        print('calculating feature {}'.format(idx))
+        print('calculating feature {}/{}'.format(idx+1, len(data_loader)))
 
     if torch.cuda.is_available():
         memory = memory.cpu()
@@ -152,8 +152,9 @@ def calculateAvgSampleDis(memory, classInstansSet):
     negDises = AverageMeter()
 
     with torch.no_grad():
-        loop = 5 # 因为每个锚点都只随机取一个正负样本，样本量可能有点少，所以这整个过程重复算几次
+        loop = 10 # 因为每个锚点都只随机取一个正负样本，样本量可能有点少，所以这整个过程重复算几次
         for i in range(loop):
+            print('calculating mutual information {}/{}'.format(i+1, loop))
             # 首先计算锚点与正样本间的平均距离
             posIdx = sampleIdx.getNPosIdx(target).view(-1)# 每个锚点的正样本的索引
             posMem = torch.index_select(memory,0,posIdx) # 取出正样本的特征
@@ -256,16 +257,28 @@ def main():
     # calculate positive distance
     train_memory = getFeatMem(model, train_loader, train_n_data)
     posDis, negDis = calculateAvgSampleDis(train_memory, train_classInstansSet)
-    print('train dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis))
+
+    f = open(os.path.join(args.result_path,'testingLog.txt'))
+
+    line = 'train dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
+    print(line)
+    f.write(line)
+
     
     # calculate negative distance
     val_memory = getFeatMem(model, val_loader, val_n_data)
     posDis, negDis = calculateAvgSampleDis(val_memory, val_classInstansSet)
-    print('val dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis))
+    line = 'val dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
+    print(line)
+    f.write(line)
+    f.close()
 
     # image case study
-    for i in range(50):
+    caseNum = 50
+    for i in range(caseNum):
+        print('ploting case study images {}/{}'.format(i*2+1, caseNum*2))
         imageCaseStudy(args, train_memory, train_classInstansSet, train_dataset, name= 'train'+str(i))
+        print('ploting case study images {}/{}'.format(i*2+2, caseNum*2))
         imageCaseStudy(args, val_memory, val_classInstansSet, val_dataset,name= 'val' + str(i))
 
 if __name__ == '__main__':
