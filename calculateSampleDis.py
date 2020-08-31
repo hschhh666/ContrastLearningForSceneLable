@@ -152,7 +152,7 @@ def calculateAvgSampleDis(memory, classInstansSet):
     negDises = AverageMeter()
 
     with torch.no_grad():
-        loop = 10 # 因为每个锚点都只随机取一个正负样本，样本量可能有点少，所以这整个过程重复算几次
+        loop = 30 # 因为每个锚点都只随机取一个正负样本，样本量可能有点少，所以这整个过程重复算几次
         for i in range(loop):
             print('calculating mutual information {}/{}'.format(i+1, loop))
             # 首先计算锚点与正样本间的平均距离
@@ -238,6 +238,7 @@ def imageCaseStudy(args, memory, classInstansSet, my_dataset, name = ''):# 就�
             plt.yticks([])
             plt.imshow(sample_img)
     plt.savefig(os.path.join(args.result_path, 'case_%s.png'%(name)))
+    plt.close()
     
 def main():
 
@@ -258,11 +259,11 @@ def main():
     train_memory = getFeatMem(model, train_loader, train_n_data)
     posDis, negDis = calculateAvgSampleDis(train_memory, train_classInstansSet)
 
-    f = open(os.path.join(args.result_path,'testingLog.txt'))
+    f = open(os.path.join(args.result_path,'testingLog.txt'),'w')
 
     line = 'train dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
     print(line)
-    f.write(line)
+    f.write(line+'\n\n')
 
     
     # calculate negative distance
@@ -270,10 +271,12 @@ def main():
     posDis, negDis = calculateAvgSampleDis(val_memory, val_classInstansSet)
     line = 'val dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
     print(line)
-    f.write(line)
+    f.write(line+'\n')
     f.close()
 
     # image case study
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache() #释放部分显存
     caseNum = 50
     for i in range(caseNum):
         print('ploting case study images {}/{}'.format(i*2+1, caseNum*2))
