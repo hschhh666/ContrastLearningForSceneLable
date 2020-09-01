@@ -83,8 +83,8 @@ def parse_option():
 
     curTime = time.strftime("%Y%m%d_%H_%M_%S", time.localtime())
     print('start program at ' + time.strftime("%Y_%m_%d %H:%M:%S", time.localtime()))
-    opt.model_name = '{}_lossMethod_{}_NegNum_{}_Model_{}_lr_{}_decay_{}_bsz_{}_contrasMethod_{}'.format(curTime, opt.method, opt.nce_k, opt.model, opt.learning_rate,
-                                                                    opt.weight_decay, opt.batch_size, opt.contrastMethod)
+    opt.model_name = '{}_lossMethod_{}_NegNum_{}_Model_{}_lr_{}_decay_{}_bsz_{}_featDim_{}_contrasMethod_{}'.format(curTime, opt.method, opt.nce_k, opt.model, opt.learning_rate,
+                                                                    opt.weight_decay, opt.batch_size, opt.feat_dim, opt.contrastMethod)
 
     if (opt.data_folder is None) or (opt.model_path is None) or (opt.tb_path is None):
         raise ValueError('one or more of the folders is None: data_folder | model_path | tb_path')

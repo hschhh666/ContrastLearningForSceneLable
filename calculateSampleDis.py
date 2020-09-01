@@ -267,12 +267,16 @@ def main():
 
     
     # calculate negative distance
-    val_memory = getFeatMem(model, val_loader, val_n_data)
+    val_memory = getFeatMem(model, val_loader, val_n_data)    
     posDis, negDis = calculateAvgSampleDis(val_memory, val_classInstansSet)
     line = 'val dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
     print(line)
     f.write(line+'\n')
     f.close()
+
+    val_memory = val_memory.numpy()
+    np.save(os.path.join(args.result_path, 'memory.npy'),val_memory)
+    print('Save memory to file ',os.path.join(args.result_path, 'memory.npy'))
 
     # image case study
     if torch.cuda.is_available():
