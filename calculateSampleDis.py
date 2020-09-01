@@ -104,12 +104,13 @@ def get_train_val_loader(args):
     return train_classInstansSet, val_classInstansSet, train_loader, val_loader, train_dataset, val_dataset
 
 def set_model(args):
-    model = MyAlexNetCMC()
     print('==> loading pre-trained model')
     if torch.cuda.is_available():
         ckpt = torch.load(args.model_path)
     else:
         ckpt = torch.load(args.model_path,map_location=torch.device('cpu'))
+    featDim = ckpt['opt'].feat_dim
+    model = MyAlexNetCMC(featDim)
     model.load_state_dict(ckpt['model'])
     print("==> loaded checkpoint '{}' (epoch {})".format(args.model_path, ckpt['epoch']))
     print('==> done')
@@ -119,12 +120,11 @@ def set_model(args):
 
 
 def getFeatMem(model, data_loader,n_data): # 计算所有数据的feature，并保存入memory中
-    memory = torch.ones(n_data, 128) 
+    model_param = list(model.named_parameters())
+    featDim = model_param[-1][1].size(0)
+    memory = torch.ones(n_data, featDim) 
     if torch.cuda.is_available():
         memory = memory.cuda()
-    '''
-    TODO: 获取模型输出的维度，这里暂时写死了
-    '''
     for idx,(img, target, index) in enumerate(data_loader):
         if torch.cuda.is_available():
             img = img.cuda()
@@ -274,8 +274,7 @@ def main():
     f.write(line+'\n')
     f.close()
 
-    val_memory = val_memory.numpy()
-    np.save(os.path.join(args.result_path, 'memory.npy'),val_memory)
+    np.save(os.path.join(args.result_path, 'memory.npy'),val_memory.numpy())
     print('Save memory to file ',os.path.join(args.result_path, 'memory.npy'))
 
     # image case study
