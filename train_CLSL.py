@@ -24,7 +24,7 @@ from NCE.NCEAverage import NCEAverage, E2EAverage
 from NCE.NCECriterion import NCECriterion
 from NCE.NCECriterion import NCESoftmaxLoss
 
-from util import adjust_learning_rate, AverageMeter,print_running_time
+from util import adjust_learning_rate, AverageMeter,print_running_time, Logger
 from sampleIdx import SampleIndex
 
 
@@ -68,6 +68,7 @@ def parse_option():
     parser.add_argument('--data_folder', type=str, default=None, help='path to data')
     parser.add_argument('--model_path', type=str, default=None, help='path to save model')
     parser.add_argument('--tb_path', type=str, default=None, help='path to tensorboard')
+    parser.add_argument('--log_txt_path', type=str, default=None, help='path to log file')
 
     # data crop threshold
     parser.add_argument('--crop_low', type=float, default=0.8, help='low area in crop')
@@ -82,12 +83,14 @@ def parse_option():
     opt.method = 'softmax' if opt.softmax else 'nce'
 
     curTime = time.strftime("%Y%m%d_%H_%M_%S", time.localtime())
-    print('start program at ' + time.strftime("%Y_%m_%d %H:%M:%S", time.localtime()))
+    
     opt.model_name = '{}_lossMethod_{}_NegNum_{}_Model_{}_lr_{}_decay_{}_bsz_{}_featDim_{}_contrasMethod_{}'.format(curTime, opt.method, opt.nce_k, opt.model, opt.learning_rate,
                                                                     opt.weight_decay, opt.batch_size, opt.feat_dim, opt.contrastMethod)
 
-    if (opt.data_folder is None) or (opt.model_path is None) or (opt.tb_path is None):
-        raise ValueError('one or more of the folders is None: data_folder | model_path | tb_path')
+    
+
+    if (opt.data_folder is None) or (opt.model_path is None) or (opt.tb_path is None) or (opt.log_txt_path is None):
+        raise ValueError('one or more of the folders is None: data_folder | model_path | tb_path | log_txt_path')
 
     opt.model_folder = os.path.join(opt.model_path, opt.model_name)
     if not os.path.isdir(opt.model_folder):
@@ -96,6 +99,14 @@ def parse_option():
     opt.tb_folder = os.path.join(opt.tb_path, opt.model_name)
     if not os.path.isdir(opt.tb_folder):
         os.makedirs(opt.tb_folder)
+
+    if not os.path.isdir(opt.log_txt_path):
+        os.makedirs(opt.log_txt_path)
+    
+    log_file_name = os.path.join(opt.log_txt_path, 'log_'+opt.model_name+'.txt') 
+    sys.stdout = Logger(log_file_name) # 把print的东西输出到txt文件中
+    print('start program at ' + time.strftime("%Y_%m_%d %H:%M:%S", time.localtime()))
+
 
     if not os.path.isdir(opt.data_folder):
         raise ValueError('data path not exist: {}'.format(opt.data_folder))

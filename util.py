@@ -3,6 +3,8 @@ from __future__ import print_function
 import torch
 import numpy as np
 import time
+import sys
+import os
 
 def print_running_time(start_time):
     print()
@@ -65,6 +67,21 @@ def accuracy(output, target, topk=(1,)):
             res.append(correct_k.mul_(100.0 / batch_size))
         return res
 
+
+class Logger(object): # 旨在把程序中所有print出来的内容都保存到文件中
+    def __init__(self, filename="Default.log"):
+        path = os.path.abspath(os.path.dirname(__file__))
+        filename = os.path.join(path,filename)
+        self.terminal = sys.stdout
+        self.log = open(filename, 'w')
+
+    def write(self, message):
+        self.terminal.write(message)
+        self.log.write(message)
+        self.log.flush()
+        
+    def flush(self):
+        pass
 
 if __name__ == '__main__':
     meter = AverageMeter()
