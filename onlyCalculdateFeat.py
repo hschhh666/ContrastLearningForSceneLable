@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 def parse_option():
     parser = argparse.ArgumentParser('argument for training')
 
-    parser.add_argument('--data_folder', type=str, default=None, help='path to data')
+    parser.add_argument('--test_data_folder', type=str, default=None, help='path to data')
     parser.add_argument('--model_path', type=str, default=None, help='path to model')
     parser.add_argument('--result_path', type=str, default=None, help='path to save result')
 
@@ -35,8 +35,8 @@ def parse_option():
     # opt.data_folder = 'C:\\Users\\HuShaochi\\Desktop\\FewAnchorBasedSceneRecognition\\dataset'
 
 
-    if (opt.data_folder is None) or (opt.model_path is None) or (opt.result_path is None):
-        raise ValueError('one or more of the folders is None: data_folder | model_path | result_path')
+    if (opt.test_data_folder is None) or (opt.model_path is None) or (opt.result_path is None):
+        raise ValueError('one or more of the folders is None: test_data_folder | model_path | result_path')
 
     if not os.path.isdir(opt.result_path):
         os.makedirs(opt.result_path)
@@ -45,8 +45,8 @@ def parse_option():
 
 
 def get_train_val_loader(args):
-    train_folder = os.path.join(args.data_folder, 'train')
-    val_folder = os.path.join(args.data_folder, 'val')
+    train_folder = args.test_data_folder
+    val_folder = args.test_data_folder
 
     mean=[0.485, 0.456, 0.406]
     std=[0.229, 0.224, 0.225]
@@ -240,7 +240,7 @@ def imageCaseStudy(args, memory, classInstansSet, my_dataset, name = ''):# 就�
     plt.savefig(os.path.join(args.result_path, 'case_%s.png'%(name)))
     plt.close()
     
-def main():# 供直接运行本脚本
+def main():
 
     # parse argument
     args = parse_option()
@@ -255,40 +255,13 @@ def main():# 供直接运行本脚本
     # load model
     model = set_model(args)
 
-    # calculate positive distance
-    train_memory = getFeatMem(model, train_loader, train_n_data)
-    posDis, negDis = calculateAvgSampleDis(train_memory, train_classInstansSet)
-
-    f = open(os.path.join(args.result_path,'testingLog.txt'),'w')
-
-    line = 'train dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
-    print(line)
-    f.write(line+'\n\n')
-
-    
-    # calculate negative distance
+    # calculate images feature
     val_memory = getFeatMem(model, val_loader, val_n_data)    
-    posDis, negDis = calculateAvgSampleDis(val_memory, val_classInstansSet)
-    line = 'val dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
-    print(line)
-    f.write(line+'\n')
-    f.close()
 
     np.save(os.path.join(args.result_path, 'memory.npy'),val_memory.numpy())
     print('Save memory to file ',os.path.join(args.result_path, 'memory.npy'))
 
-    # image case study
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache() #释放部分显存
-    caseNum = 50
-    for i in range(caseNum):
-        print('ploting case study images {}/{}'.format(i*2+1, caseNum*2))
-        imageCaseStudy(args, train_memory, train_classInstansSet, train_dataset, name= 'train'+str(i))
-        print('ploting case study images {}/{}'.format(i*2+2, caseNum*2))
-        imageCaseStudy(args, val_memory, val_classInstansSet, val_dataset,name= 'val' + str(i))
-
-
-def calSampleDisAndImgCaseStudy(model, args): # 供外部调用
+def onlyCalFeat(model, args):
     # get data
     train_classInstansSet, val_classInstansSet, train_loader, val_loader, train_dataset, val_dataset = get_train_val_loader(args)
 
@@ -296,34 +269,11 @@ def calSampleDisAndImgCaseStudy(model, args): # 供外部调用
     train_n_data = len(train_dataset)
     val_n_data = len(val_dataset)
 
-    # calculate positive distance
-    train_memory = getFeatMem(model, train_loader, train_n_data)
-    posDis, negDis = calculateAvgSampleDis(train_memory, train_classInstansSet)
-
-    f = open(os.path.join(args.result_path,'testingLog.txt'),'w')
-
-    line = 'train dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
-    print(line)
-    f.write(line+'\n\n')
-
-    
-    # calculate negative distance
+    # calculate images feature
     val_memory = getFeatMem(model, val_loader, val_n_data)    
-    posDis, negDis = calculateAvgSampleDis(val_memory, val_classInstansSet)
-    line = 'val dataset : positive sample average distance = {}, negative sample average distance = {}'.format(posDis, negDis)
-    print(line)
-    f.write(line+'\n')
-    f.close()
 
-    # image case study
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache() #释放部分显存
-    caseNum = 50
-    for i in range(caseNum):
-        # print('ploting case study images {}/{}'.format(i*2+1, caseNum*2))
-        imageCaseStudy(args, train_memory, train_classInstansSet, train_dataset, name= 'train'+str(i))
-        # print('ploting case study images {}/{}'.format(i*2+2, caseNum*2))
-        imageCaseStudy(args, val_memory, val_classInstansSet, val_dataset,name= 'val' + str(i))
+    np.save(os.path.join(args.result_path, args.model_name+'.npy'),val_memory.numpy())
+    print('Save memory to file ',os.path.join(args.result_path, args.model_name+'.npy'))
 
 if __name__ == '__main__':
     main()

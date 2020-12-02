@@ -27,6 +27,9 @@ from NCE.NCECriterion import NCESoftmaxLoss
 from util import adjust_learning_rate, AverageMeter,print_running_time, Logger
 from sampleIdx import SampleIndex
 
+from calculateSampleDis import calSampleDisAndImgCaseStudy
+from onlyCalculdateFeat import onlyCalFeat
+
 
 def parse_option():
 
@@ -65,10 +68,12 @@ def parse_option():
     parser.add_argument('--feat_dim', type=int, default=128, help='dim of feat for inner product') # dimension of network's output
 
     # specify folder
-    parser.add_argument('--data_folder', type=str, default=None, help='path to data')
+    parser.add_argument('--data_folder', type=str, default=None, help='path to training data') # 训练数据文件夹，即锚点/正负样本文件夹
+    parser.add_argument('--test_data_folder', type=str, default=None, help='path to testing data') # 测试数据文件夹，即所有视频帧的文件夹
     parser.add_argument('--model_path', type=str, default=None, help='path to save model')
     parser.add_argument('--tb_path', type=str, default=None, help='path to tensorboard')
     parser.add_argument('--log_txt_path', type=str, default=None, help='path to log file')
+    parser.add_argument('--result_path', type=str, default=None, help='path to sample dis and img case study') # 训练结束后，图像间距离的case study保存在这个路径下
 
     # data crop threshold
     parser.add_argument('--crop_low', type=float, default=0.8, help='low area in crop')
@@ -89,8 +94,8 @@ def parse_option():
 
     
 
-    if (opt.data_folder is None) or (opt.model_path is None) or (opt.tb_path is None) or (opt.log_txt_path is None):
-        raise ValueError('one or more of the folders is None: data_folder | model_path | tb_path | log_txt_path')
+    if (opt.data_folder is None) or (opt.model_path is None) or (opt.tb_path is None) or (opt.log_txt_path is None) or (opt.result_path is None) or (opt.test_data_folder is None):
+        raise ValueError('one or more of the folders is None: data_folder | model_path | tb_path | log_txt_path | result_path | test_data_folder')
 
     opt.model_folder = os.path.join(opt.model_path, opt.model_name)
     if not os.path.isdir(opt.model_folder):
@@ -102,6 +107,10 @@ def parse_option():
 
     if not os.path.isdir(opt.log_txt_path):
         os.makedirs(opt.log_txt_path)
+
+    opt.result_path = os.path.join(opt.result_path, opt.model_name)
+    if not os.path.isdir(opt.result_path):
+        os.makedirs(opt.result_path)
     
     log_file_name = os.path.join(opt.log_txt_path, 'log_'+opt.model_name+'.txt') 
     sys.stdout = Logger(log_file_name) # 把print的东西输出到txt文件中
@@ -347,7 +356,16 @@ def main():
             torch.save(state, save_file)
             # help release GPU memory
             del state
-
+    
+    print("==================== Training finished. Start testing ====================")
+    model.eval()
+    print('Calculating anchor-positive anchor-negative average distance......')
+    calSampleDisAndImgCaseStudy(model, args) # 训练结束后，计算锚点-正样本和锚点-负样本间的平均距离，以及进行图像间距离的case study
+    print('Done.\n\n')
+    print('Calculating features...')
+    onlyCalFeat(model, args)
+    print('Done.\n\n')
+    print('Program exit normally.')
 
 if __name__ == '__main__':
     main()
