@@ -66,6 +66,16 @@ class SampleIndex(object):
     def getNNegIdx(self, targets,n=1):# targets的尺寸是batch_size*1, 表明该batch中每个图片所述类别。对每个图片，采样n个它所对应的负样本
         index = []
         for t in targets:
-            negIdx = random.sample(self.datasetIdx - self.classInstansSet[t.item()],n)
+            negIdx = []
+            if t == 0:
+                negIdx += self.classInstansSet[t.item()+1]
+                negIdx += self.classInstansSet[self.class_num - 1]
+            elif t == self.class_num - 1:
+                negIdx += self.classInstansSet[t.item()-1]
+                negIdx += self.classInstansSet[0]
+            else:
+                negIdx += self.classInstansSet[t.item()-1]
+                negIdx += self.classInstansSet[t.item()+1]
+            negIdx = random.sample(negIdx, n)
             index.append(negIdx)
         return torch.Tensor(index).long()
