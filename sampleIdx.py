@@ -1,6 +1,51 @@
 import numpy as np
 import torch
 import random
+from torch.utils.data.sampler import BatchSampler, RandomSampler
+
+class RandomBatchSamplerWithPosAndNeg(BatchSampler):
+    def __init__(self, dataset, batch_size, classInstansSet, nce_k, drop_last=False):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.classInstansSet = classInstansSet
+        self.nce_k = nce_k
+        self.drop_last = drop_last
+        self.sampler = RandomSampler(dataset)
+        self.class_num = len(classInstansSet)
+        super().__init__(self.sampler, self.batch_size, self.drop_last)
+        
+
+    def __iter__(self):
+        batch = []
+        anchor_idx = []
+        pos_and_neg_idx = []
+        for i in self.sampler:
+            anchor_idx.append(i)
+            t = self.dataset.targets[i]
+            posIdx = random.sample(self.classInstansSet[t],1)
+            pos_and_neg_idx += posIdx
+            negIdx = []
+            if t == 0:
+                negIdx += self.classInstansSet[t+1]
+                negIdx += self.classInstansSet[self.class_num - 1]
+            elif t == self.class_num - 1:
+                negIdx += self.classInstansSet[t-1]
+                negIdx += self.classInstansSet[0]
+            else:
+                negIdx += self.classInstansSet[t-1]
+                negIdx += self.classInstansSet[t+1]
+            negIdx = random.sample(negIdx, self.nce_k)
+            pos_and_neg_idx += negIdx
+            if len(anchor_idx) == self.batch_size:
+                batch = anchor_idx + pos_and_neg_idx #输出 batchSize + batchSize*(1+N)张照片，batchSize是anchor image，batchSize*(1+N)中，对于每个batch，第一个是pos，剩下N个是neg
+                yield batch
+                batch = []
+                anchor_idx = []
+                pos_and_neg_idx = []
+        if len(anchor_idx) > 0 and not self.drop_last:
+            batch = anchor_idx + pos_and_neg_idx
+            yield batch       
+
 
 class SampleIndex(object):
     def __init__(self, classInstansSet):
