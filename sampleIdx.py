@@ -55,22 +55,24 @@ class SampleIndex(object):
         for item in classInstansSet:
             self.n_data += len(item)
             self.class_num += 1
-        self.datasetIdx = set([i for i in range(self.n_data)])
+        self.allIdx = set([i for i in range(self.n_data)])
     
     def getRandomIdx(self, targets, N):# targets的尺寸是batch_size*1, 表明该batch中每个图片所述类别。对每个图片，采样N个它所对应的负样本
         index = []
         for t in targets:
             posIdx = random.sample(self.classInstansSet[t.item()],1)
-            negIdx = []
-            if t == 0:
-                negIdx += self.classInstansSet[t.item()+1]
-                negIdx += self.classInstansSet[self.class_num - 1]
-            elif t == self.class_num - 1:
-                negIdx += self.classInstansSet[t.item()-1]
-                negIdx += self.classInstansSet[0]
-            else:
-                negIdx += self.classInstansSet[t.item()-1]
-                negIdx += self.classInstansSet[t.item()+1]
+            negIdx = self.allIdx.difference(self.classInstansSet[t])
+            negIdx = list(negIdx)
+            # negIdx = []
+            # if t == 0:
+            #     negIdx += self.classInstansSet[t.item()+1]
+            #     negIdx += self.classInstansSet[self.class_num - 1]
+            # elif t == self.class_num - 1:
+            #     negIdx += self.classInstansSet[t.item()-1]
+            #     negIdx += self.classInstansSet[0]
+            # else:
+            #     negIdx += self.classInstansSet[t.item()-1]
+            #     negIdx += self.classInstansSet[t.item()+1]
 
             # if t != 0:
             #     negIdx += self.classInstansSet[t.item()-1]
