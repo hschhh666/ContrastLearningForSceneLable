@@ -13,7 +13,10 @@ class RandomBatchSamplerWithPosAndNeg(BatchSampler):
         self.sampler = RandomSampler(dataset)
         self.class_num = len(classInstansSet)
         super().__init__(self.sampler, self.batch_size, self.drop_last)
-        
+        self.allIdx = []
+        for idxs in classInstansSet:
+            self.allIdx += idxs
+        self.allIdx = set(self.allIdx)
 
     def __iter__(self):
         batch = []
@@ -24,16 +27,17 @@ class RandomBatchSamplerWithPosAndNeg(BatchSampler):
             t = self.dataset.targets[i]
             posIdx = random.sample(self.classInstansSet[t],1)
             pos_and_neg_idx += posIdx
-            negIdx = []
-            if t == 0:
-                negIdx += self.classInstansSet[t+1]
-                negIdx += self.classInstansSet[self.class_num - 1]
-            elif t == self.class_num - 1:
-                negIdx += self.classInstansSet[t-1]
-                negIdx += self.classInstansSet[0]
-            else:
-                negIdx += self.classInstansSet[t-1]
-                negIdx += self.classInstansSet[t+1]
+            negIdx = self.allIdx.difference(self.classInstansSet[t])
+            negIdx = list(negIdx)
+            # if t == 0:
+            #     negIdx += self.classInstansSet[t+1]
+            #     negIdx += self.classInstansSet[self.class_num - 1]
+            # elif t == self.class_num - 1:
+            #     negIdx += self.classInstansSet[t-1]
+            #     negIdx += self.classInstansSet[0]
+            # else:
+            #     negIdx += self.classInstansSet[t-1]
+            #     negIdx += self.classInstansSet[t+1]
             negIdx = random.sample(negIdx, self.nce_k)
             pos_and_neg_idx += negIdx
             if len(anchor_idx) == self.batch_size:
