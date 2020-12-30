@@ -78,6 +78,8 @@ def parse_option():
     # data crop threshold
     parser.add_argument('--crop_low', type=float, default=0.8, help='low area in crop')
 
+    parser.add_argument('--comment_info', type=str, default='', help='Comment message, donot influence program')
+
     opt = parser.parse_args()
 
     iterations = opt.lr_decay_epochs.split(',')
@@ -89,8 +91,8 @@ def parse_option():
 
     curTime = time.strftime("%Y%m%d_%H_%M_%S", time.localtime())
     
-    opt.model_name = '{}_lossMethod_{}_NegNum_{}_Model_{}_lr_{}_decay_{}_bsz_{}_featDim_{}_contrasMethod_{}'.format(curTime, opt.method, opt.nce_k, opt.model, opt.learning_rate,
-                                                                    opt.weight_decay, opt.batch_size, opt.feat_dim, opt.contrastMethod)
+    opt.model_name = '{}_lossMethod_{}_NegNum_{}_Model_{}_lr_{}_decay_{}_bsz_{}_featDim_{}_contrasMethod_{}_{}'.format(curTime, opt.method, opt.nce_k, opt.model, opt.learning_rate,
+                                                                    opt.weight_decay, opt.batch_size, opt.feat_dim, opt.contrastMethod, opt.comment_info)
 
     
 
@@ -114,6 +116,10 @@ def parse_option():
     
     log_file_name = os.path.join(opt.log_txt_path, 'log_'+opt.model_name+'.txt') 
     sys.stdout = Logger(log_file_name) # 把print的东西输出到txt文件中
+
+    if opt.comment_info != '':
+        print('comment message : ', opt.comment_info)
+
     print('start program at ' + time.strftime("%Y_%m_%d %H:%M:%S", time.localtime()))
 
 
