@@ -18,7 +18,7 @@ import torchvision
 
 import tensorboard_logger as tb_logger
 
-from dataset import ImageFolderInstance
+from dataset import ImageFolderInstance, ImageFolderInstance_LoadAllImgToMemory
 from models.alexnet import MyAlexNetCMC
 from NCE.NCEAverage import NCEAverage, E2EAverage
 from NCE.NCECriterion import NCECriterion
@@ -147,7 +147,8 @@ def get_train_loader(args):
     ])
 
     
-    train_dataset = ImageFolderInstance(data_folder, transform=train_transform)
+    train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, shuffle= True, num_workers=args.num_workers, pin_memory=True)
 
     # 获得某类物体的图片索引，图片索引以set的形式保存
     classInstansSet = []
@@ -163,10 +164,6 @@ def get_train_loader(args):
 
     n_data = len(train_dataset)
     print('number of samples: {}'.format(n_data))
-
-    batch_sampler = RandomBatchSamplerWithPosAndNeg(train_dataset, batch_size=args.batch_size, classInstansSet=classInstansSet, nce_k = args.nce_k)
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=args.num_workers, pin_memory=True)
-
 
     return train_loader, n_data, classInstansSet, train_dataset
 
@@ -211,7 +208,7 @@ def train_e2e(epoch,train_loader,train_dataset, model, contrast, sampleIndex, cr
     for idx,(img, target, index) in enumerate(train_loader):
         data_time.update(time.time() - end)
 
-        # img = sampleIndex.getAndCatAnchorPosNeg(target,opt.nce_k,img,train_dataset) # img的size是batchSize*(1+1+N),分别是anchor，pos，neg
+        img = sampleIndex.getAndCatAnchorPosNeg(target,opt.nce_k,img,train_dataset) # img的size是batchSize*(1+1+N),分别是anchor，pos，neg
 
         bsz = img.size(0)
         if torch.cuda.is_available():
