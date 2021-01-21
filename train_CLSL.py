@@ -121,7 +121,7 @@ def parse_option():
         print('comment message : ', opt.comment_info)
 
     print('start program at ' + time.strftime("%Y_%m_%d %H:%M:%S", time.localtime()))
-
+    print('Dataset :', opt.data_folder)
 
     if not os.path.isdir(opt.data_folder):
         raise ValueError('data path not exist: {}'.format(opt.data_folder))
@@ -141,9 +141,9 @@ def get_train_loader(args):
     train_transform = transforms.Compose([
         # transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
         transforms.Resize((224,224)),
-        transforms.RandomGrayscale(p=0.2),
+        # transforms.RandomGrayscale(p=0.2),
         transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
+        # transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
     ])
