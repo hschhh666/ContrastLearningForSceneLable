@@ -13,6 +13,8 @@ import torch.backends.cudnn as cudnn
 import argparse
 import socket
 
+import numpy as np
+
 from torchvision import transforms, datasets
 import torchvision
 
@@ -175,7 +177,16 @@ def get_train_loader(args):
 def set_model(args, n_data, classInstansSet):
 
     model = MyAlexNetCMC(args.feat_dim)
-    
+
+    if args.resume:
+        if torch.cuda.is_available():
+            ckpt = torch.load(args.resume)
+        else:
+            ckpt = torch.load(args.resume,map_location=torch.device('cpu'))
+        print("==> loaded pre-trained checkpoint '{}' (epoch {})".format(args.resume, ckpt['epoch']))
+        model.load_state_dict(ckpt['model'])
+        print('==> done')
+
     contrast = 'placeholder'
     if args.contrastMethod == 'membank':
         contrast = NCEAverage(args.feat_dim, n_data,classInstansSet,args.nce_k, args.nce_t, args.nce_m, args.softmax)
@@ -329,6 +340,8 @@ def main():
     print('start training at ' + time.strftime("%Y_%m_%d %H:%M:%S", time.localtime()))
     start_time = time.time()
     sampleIdx = SampleIndex(classInstansSet)
+    min_loss = np.inf
+    best_model_path = ''
     for epoch in range(args.start_epoch, args.epochs + 1):
         adjust_learning_rate(epoch, args, optimizer)
 
@@ -355,14 +368,43 @@ def main():
             torch.save(state, save_file)
             # help release GPU memory
             del state
+
+        if loss < min_loss:
+            if min_loss != np.inf:
+                os.remove(best_model_path)
+            min_loss = loss
+            best_model_path = os.path.join(args.model_folder, 'ckpt_epoch_{epoch}_Best.pth'.format(epoch=epoch))
+            print('==> Saving best model...')
+            state = {
+                'opt': args,
+                'model': model.state_dict(),
+                'contrast': contrast.state_dict(),
+                'optimizer': optimizer.state_dict(),
+                'epoch': epoch,
+            }
+            # if args.amp:
+            #     state['amp'] = amp.state_dict()
+            torch.save(state, best_model_path)
+            # help release GPU memory
+            del state
     
     print("==================== Training finished. Start testing ====================")
+    print('==> loading best model')
+    print('min loss = %.3f'%min_loss)
+    if torch.cuda.is_available():
+        ckpt = torch.load(best_model_path)
+    else:
+        ckpt = torch.load(best_model_path,map_location=torch.device('cpu'))
+    model.load_state_dict(ckpt['model'])
+    print("==> loaded checkpoint '{}' (epoch {})".format(best_model_path, ckpt['epoch']))
+    print('==> done')
     model.eval()
-    print('Calculating anchor-positive anchor-negative average distance......')
-    calSampleDisAndImgCaseStudy(model, args) # 训练结束后，计算锚点-正样本和锚点-负样本间的平均距离，以及进行图像间距离的case study
-    print('Done.\n\n')
+    
     print('Calculating features...')
     onlyCalFeat(model, args)
+    print('Done.\n\n')
+    print('Calculating anchor-positive anchor-negative average distance......')
+    calSampleDisAndImgCaseStudy(model, args) # 训练结束后，计算锚点-正样本和锚点-负样本间的平均距离，以及进行图像间距离的case study
     print('Done.\n\n')
     print('Program exit normally.')
 
