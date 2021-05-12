@@ -141,7 +141,7 @@ def get_train_loader(args):
     std=[0.229, 0.224, 0.225]
 
     train_transform = transforms.Compose([
-        # transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
+        transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
         transforms.Resize((224,224)),
         transforms.RandomGrayscale(p=0.2),
         transforms.RandomHorizontalFlip(),
