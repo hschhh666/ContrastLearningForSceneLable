@@ -83,5 +83,25 @@ class Logger(object): # 旨在把程序中所有print出来的内容都保存到
     def flush(self):
         pass
 
+
+def check_pytorch_idx_validation(class_to_idx):
+    keys = []
+    values = []
+    for key in class_to_idx.keys():
+        keys.append(int(key))
+        values.append(class_to_idx[key])
+    origin_keys = keys.copy()
+    origin_values = values.copy()
+    keys.sort()
+    values.sort()
+    for i, key in enumerate(keys):
+        cur_value = values[i]
+        idx = origin_keys.index(key)
+        origin_value = origin_values[idx]
+        if cur_value != origin_value:
+            print('Error! Pytorch file name sort error! Program exit.')
+            exit()
+
+    
 if __name__ == '__main__':
     meter = AverageMeter()

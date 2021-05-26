@@ -26,7 +26,7 @@ from NCE.NCEAverage import NCEAverage, E2EAverage
 from NCE.NCECriterion import NCECriterion
 from NCE.NCECriterion import NCESoftmaxLoss
 
-from util import adjust_learning_rate, AverageMeter,print_running_time, Logger
+from util import adjust_learning_rate, AverageMeter,print_running_time, Logger, check_pytorch_idx_validation
 from sampleIdx import SampleIndex, RandomBatchSamplerWithPosAndNeg
 
 from calculateSampleDis import calSampleDisAndImgCaseStudy
@@ -152,6 +152,7 @@ def get_train_loader(args):
 
     
     train_dataset = ImageFolderInstance(data_folder, transform=train_transform)
+    check_pytorch_idx_validation(train_dataset.class_to_idx)
 
     # 获得某类物体的图片索引，图片索引以set的形式保存
     classInstansSet = []
