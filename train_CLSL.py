@@ -26,8 +26,8 @@ from NCE.NCEAverage import NCEAverage, E2EAverage
 from NCE.NCECriterion import NCECriterion
 from NCE.NCECriterion import NCESoftmaxLoss
 
-from util import adjust_learning_rate, AverageMeter,print_running_time, Logger, check_pytorch_idx_validation
-from sampleIdx import SampleIndex, RandomBatchSamplerWithPosAndNeg
+from util import adjust_learning_rate, AverageMeter,print_running_time, Logger, check_pytorch_idx_validation, get_anchor_pos_neg
+from sampleIdx import SampleIndex, RandomBatchSamplerWithPosAndNeg, RandomBatchSamplerWithSupplementPosAndNeg
 
 from calculateSampleDis import calSampleDisAndImgCaseStudy
 from onlyCalculdateFeat import onlyCalFeat
@@ -82,6 +82,7 @@ def parse_option():
 
     parser.add_argument('--comment_info', type=str, default='', help='Comment message, donot influence program')
 
+    parser.add_argument('--supplement_pos_neg_txt_path', type=str, default='')
     opt = parser.parse_args()
 
     iterations = opt.lr_decay_epochs.split(',')
@@ -169,7 +170,13 @@ def get_train_loader(args):
     n_data = len(train_dataset)
     print('number of samples: {}'.format(n_data))
 
-    batch_sampler = RandomBatchSamplerWithPosAndNeg(train_dataset, batch_size=args.batch_size, classInstansSet=classInstansSet, nce_k = args.nce_k)
+    if args.supplement_pos_neg_txt_path == '': # 如果没有补充正负锚点文件的话，还按照原来的邻域正负样本采样方式
+        batch_sampler = RandomBatchSamplerWithPosAndNeg(train_dataset, batch_size=args.batch_size, classInstansSet=classInstansSet, nce_k = args.nce_k)
+    else:
+        pos_neg_idx = get_anchor_pos_neg(args.supplement_pos_neg_txt_path, train_dataset, classInstansSet)
+        batch_sampler = RandomBatchSamplerWithSupplementPosAndNeg(train_dataset, batch_size=args.batch_size, all_pos_neg_idx=pos_neg_idx, nce_k = args.nce_k)
+        print('Training with supplement pos and neg. %s'%args.supplement_pos_neg_txt_path)
+
     train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=args.num_workers, pin_memory=True)
 
 

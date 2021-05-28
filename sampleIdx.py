@@ -47,6 +47,38 @@ class RandomBatchSamplerWithPosAndNeg(BatchSampler):
             yield batch       
 
 
+class RandomBatchSamplerWithSupplementPosAndNeg(BatchSampler):
+    def __init__(self, dataset, batch_size, all_pos_neg_idx, nce_k, drop_last=False):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.all_pos_neg_idx = all_pos_neg_idx
+        self.nce_k = nce_k
+        self.drop_last = drop_last
+        self.sampler = RandomSampler(dataset)
+        self.class_num = len(all_pos_neg_idx)
+        super().__init__(self.sampler, self.batch_size, self.drop_last)
+        
+    def __iter__(self):
+        batch = []
+        anchor_idx = []
+        pos_and_neg_idx = []
+        for i in self.sampler:
+            anchor_idx.append(i)
+            t = self.dataset.targets[i]
+            posIdx = random.sample(self.all_pos_neg_idx[t][0], 1)
+            pos_and_neg_idx += posIdx
+            negIdx = random.sample(self.all_pos_neg_idx[t][1], self.nce_k)
+            pos_and_neg_idx += negIdx
+            if len(anchor_idx) == self.batch_size:
+                batch = anchor_idx + pos_and_neg_idx #输出 batchSize + batchSize*(1+N)张照片，batchSize是anchor image，batchSize*(1+N)中，对于每个batch，第一个是pos，剩下N个是neg
+                yield batch
+                batch = []
+                anchor_idx = []
+                pos_and_neg_idx = []
+        if len(anchor_idx) > 0 and not self.drop_last:
+            batch = anchor_idx + pos_and_neg_idx
+            yield batch
+
 class SampleIndex(object):
     def __init__(self, classInstansSet):
         self.classInstansSet = classInstansSet

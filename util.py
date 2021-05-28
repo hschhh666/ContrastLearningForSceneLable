@@ -83,6 +83,61 @@ class Logger(object): # 旨在把程序中所有print出来的内容都保存到
     def flush(self):
         pass
 
+def get_anchor_pos_neg(supplement_pos_neg_txt_path, dataset, classInstansSet):
+    pos_neg_idx = [] # 数据形式：[[[pos_idx], [neg_idx]], [[pos_idx], [neg_idx]], [[pos_idx], [neg_idx]]]
+    anchor_num = len(dataset.classes)
+
+    # 首先把原来由邻域定义的正负样本放进去
+    for i in range(anchor_num):
+        cur_pos = list(classInstansSet[i])
+        cur_neg = list(classInstansSet[(i+1) % anchor_num]) + list(classInstansSet[i-1])
+        pos_neg_idx.append([cur_pos, cur_neg])
+    
+    # 读取补充正负样本的文件
+    f = open(supplement_pos_neg_txt_path, 'r')
+    lines = f.readlines()
+    f.close()
+    for line in lines:
+        if line[0] == '#':
+            continue
+        line = line.split(':')
+
+        anchor_img_idx_str = line[0].rjust(10,'0')
+        anchor_torch_idx = dataset.class_to_idx[anchor_img_idx_str]
+
+        # 补充的正样本锚点在pytorch中的索引
+        pos_anchor_img_idx_str = line[1].split()
+        pos_anchor_torch_idx = []
+        if len(pos_anchor_img_idx_str):
+            pos_anchor_img_idx_str = [i.rjust(10,'0') for i in pos_anchor_img_idx_str]
+            pos_anchor_torch_idx = [dataset.class_to_idx[i] for i in pos_anchor_img_idx_str]
+
+        # 补充的负样本锚点在pytorch中的索引
+        neg_anchor_img_idx_str = line[2].split()
+        neg_anchor_torch_idx = []
+        if len(neg_anchor_img_idx_str):
+            neg_anchor_img_idx_str = [i.rjust(10,'0') for i in neg_anchor_img_idx_str]
+            neg_anchor_torch_idx = [dataset.class_to_idx[i] for i in neg_anchor_img_idx_str]
+        
+        pos_sample_torch_idx = []
+        for i in pos_anchor_torch_idx:
+            pos_sample_torch_idx += classInstansSet[i]
+        
+        neg_sample_torch_idx = []
+        for i in neg_anchor_torch_idx:
+           neg_sample_torch_idx += classInstansSet[i]
+
+        pos_neg_idx[anchor_torch_idx][0] += pos_sample_torch_idx
+        pos_neg_idx[anchor_torch_idx][0] = list(set(pos_neg_idx[anchor_torch_idx][0]))
+
+        pos_neg_idx[anchor_torch_idx][1] += neg_sample_torch_idx
+        pos_neg_idx[anchor_torch_idx][1] = list(set(pos_neg_idx[anchor_torch_idx][1]))
+
+        pass
+    
+    return pos_neg_idx
+
+
 
 def check_pytorch_idx_validation(class_to_idx):
     keys = []
