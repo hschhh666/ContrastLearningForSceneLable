@@ -240,7 +240,7 @@ def train_e2e(epoch,train_loader,train_dataset, model, contrast, sampleIndex, cr
             img = img.cuda()
 
         # ===================forward=====================
-        feat = feat = model(img)
+        feat = model(img)
         mutualInfo = contrast(feat)
         loss = criterion(mutualInfo)
         prob = mutualInfo[:,0].mean()
