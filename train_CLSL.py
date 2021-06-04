@@ -20,7 +20,7 @@ import torchvision
 
 import tensorboard_logger as tb_logger
 
-from dataset import ImageFolderInstance
+from dataset import ImageFolderInstance, ImageFolderInstance_LoadAllImgToMemory
 from models.alexnet import MyAlexNetCMC
 from NCE.NCEAverage import NCEAverage, E2EAverage
 from NCE.NCECriterion import NCECriterion
@@ -83,6 +83,7 @@ def parse_option():
     parser.add_argument('--comment_info', type=str, default='', help='Comment message, donot influence program')
 
     parser.add_argument('--supplement_pos_neg_txt_path', type=str, default='')
+    parser.add_argument('--training_data_cache_method', type=str, default='default', choices=['default', 'memory', 'GPU'], help='where to save training data. \'memory\' or \'GPU\' will load all training data into memory or GPU at begining to speed up data reading at training stage.')
     opt = parser.parse_args()
 
     iterations = opt.lr_decay_epochs.split(',')
@@ -151,8 +152,19 @@ def get_train_loader(args):
         transforms.Normalize(mean=mean, std=std)
     ])
 
-    
-    train_dataset = ImageFolderInstance(data_folder, transform=train_transform)
+    # 选择训练数据读取方式
+    # default：传统方式，即每次仅读取一个batch的数据到内存中；
+    # memory 或 GPU：在程序开始阶段就将所有数据读到内存或显存中，以加快训练过程中的数据读取速度，但面临内存或显存不够用的问题
+    if args.training_data_cache_method == 'default':
+        train_dataset = ImageFolderInstance(data_folder, transform=train_transform)
+    else:
+        if torch.cuda.is_available() and args.training_data_cache_method == 'GPU':
+            train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform, training_data_cache_method='GPU')
+        else:
+            train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform, training_data_cache_method='memory')
+            if (not torch.cuda.is_available()) and args.training_data_cache_method == 'GPU':
+                print('CUDA is not is_available, load all training data into memory instead of GPU')
+
     check_pytorch_idx_validation(train_dataset.class_to_idx)
 
     # 获得某类物体的图片索引，图片索引以set的形式保存
@@ -177,8 +189,10 @@ def get_train_loader(args):
         batch_sampler = RandomBatchSamplerWithSupplementPosAndNeg(train_dataset, batch_size=args.batch_size, all_pos_neg_idx=pos_neg_idx, nce_k = args.nce_k)
         print('Training with supplement pos and neg. %s'%args.supplement_pos_neg_txt_path)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=args.num_workers, pin_memory=True)
-
+    pin_memory = True
+    if args.training_data_cache_method == 'GPU' and torch.cuda.is_available():
+        pin_memory = False # 如果所有训练数据已经放在显存里了，那就不能再设置这个选项了。这个选项的含义是锁页内存，锁页内存中的数据永远不会与虚拟内存交换，即放在这里面的数据可以有很高的IO
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=args.num_workers, pin_memory=pin_memory)
 
     return train_loader, n_data, classInstansSet, train_dataset
 
