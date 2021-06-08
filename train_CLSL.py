@@ -142,9 +142,8 @@ def get_train_loader(args):
     mean=[0.485, 0.456, 0.406]
     std=[0.229, 0.224, 0.225]
 
-    train_transform = transforms.Compose([
+    train_transform_withRandom = transforms.Compose([
         transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
-        transforms.Resize((224,224)),
         transforms.RandomGrayscale(p=0.2),
         transforms.RandomHorizontalFlip(),
         transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
@@ -152,16 +151,23 @@ def get_train_loader(args):
         transforms.Normalize(mean=mean, std=std)
     ])
 
+    train_transform_withoutRandom = transforms.Compose([  
+        transforms.Resize((224,224)),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=mean, std=std)
+    ])
     # 选择训练数据读取方式
     # default：传统方式，即每次仅读取一个batch的数据到内存中；
     # memory 或 GPU：在程序开始阶段就将所有数据读到内存或显存中，以加快训练过程中的数据读取速度，但面临内存或显存不够用的问题
+    # ！！！！！！！！！注意！！！！！！！！！如果数据被预先加载到显存中，则不会有数据增强，因为一旦进入显存后就无法再进行CPU运算了
+    # 总结：如果选择将数据一次性加载到显存中，则不会有随机数据增强
     if args.training_data_cache_method == 'default':
-        train_dataset = ImageFolderInstance(data_folder, transform=train_transform)
+        train_dataset = ImageFolderInstance(data_folder, transform=train_transform_withRandom)
     else:
         if torch.cuda.is_available() and args.training_data_cache_method == 'GPU':
-            train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform, training_data_cache_method='GPU')
+            train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform_withoutRandom, training_data_cache_method='GPU')
         else:
-            train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform, training_data_cache_method='memory')
+            train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform_withRandom, training_data_cache_method='memory')
             if (not torch.cuda.is_available()) and args.training_data_cache_method == 'GPU':
                 print('CUDA is not is_available, load all training data into memory instead of GPU')
 
@@ -190,9 +196,11 @@ def get_train_loader(args):
         print('Training with supplement pos and neg. %s'%args.supplement_pos_neg_txt_path)
 
     pin_memory = True
+    num_workers = args.num_workers
     if args.training_data_cache_method == 'GPU' and torch.cuda.is_available():
         pin_memory = False # 如果所有训练数据已经放在显存里了，那就不能再设置这个选项了。这个选项的含义是锁页内存，锁页内存中的数据永远不会与虚拟内存交换，即放在这里面的数据可以有很高的IO
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=args.num_workers, pin_memory=pin_memory)
+        num_workers = 0 # 如果所有训练数据已经放在显存里了，那么就不能设置多线程transform了，因为这一步必须要CPU完成
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_sampler=batch_sampler, num_workers=num_workers, pin_memory=pin_memory)
 
     return train_loader, n_data, classInstansSet, train_dataset
 

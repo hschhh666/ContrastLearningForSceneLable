@@ -319,7 +319,7 @@ def calSampleDisAndImgCaseStudy(model, args): # 供外部调用
     # image case study
     if torch.cuda.is_available():
         torch.cuda.empty_cache() #释放部分显存
-    caseNum = 50
+    caseNum = 5
     for i in range(caseNum):
         # print('ploting case study images {}/{}'.format(i*2+1, caseNum*2))
         imageCaseStudy(args, train_memory, train_classInstansSet, train_dataset, name= 'train'+str(i))

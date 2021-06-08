@@ -28,15 +28,16 @@ class ImageFolderInstance_LoadAllImgToMemory(datasets.ImageFolder):
         super(ImageFolderInstance_LoadAllImgToMemory, self).__init__(root, transform, target_transform)
         self.allImg = []
         lastP = -1
+        self.training_data_cache_method = training_data_cache_method
         for index in range(len(self.imgs)):
             path, target = self.imgs[index]
-            image = self.loader(path)
-            if self.transform is not None:
-                img = self.transform(image)
+            img = self.loader(path)
+            if self.training_data_cache_method == 'GPU' and self.transform is not None:
+                img = self.transform(img)
+                img = img.cuda()
             if self.target_transform is not None:
                 target = self.target_transform(target)
-            if training_data_cache_method == 'GPU':
-                img = img.cuda()
+                
             self.allImg.append(img)
             percentage = int((float(index) / len(self.imgs))*100)
             if percentage % 10 == 0 and lastP != percentage:
@@ -47,4 +48,6 @@ class ImageFolderInstance_LoadAllImgToMemory(datasets.ImageFolder):
     def __getitem__(self, index):
         path, target = self.imgs[index]
         img = self.allImg[index]
+        if self.training_data_cache_method == 'memory' and self.transform is not None:
+            img = self.transform(img)
         return img, target, index
