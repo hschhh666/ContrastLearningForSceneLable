@@ -91,6 +91,7 @@ def get_anchor_pos_neg(supplement_pos_neg_txt_path, dataset, classInstansSet):
     for i in range(anchor_num):
         cur_pos = list(classInstansSet[i])
         cur_neg = list(classInstansSet[(i+1) % anchor_num]) + list(classInstansSet[i-1])
+        cur_neg = []
         pos_neg_idx.append([cur_pos, cur_neg])
     
     # 读取补充正负样本的文件
