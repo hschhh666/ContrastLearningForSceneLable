@@ -22,6 +22,7 @@ import tensorboard_logger as tb_logger
 
 from dataset import ImageFolderInstance, ImageFolderInstance_LoadAllImgToMemory
 from models.alexnet import MyAlexNetCMC
+from models.resnet50 import MyResnet50
 from NCE.NCEAverage import NCEAverage, E2EAverage
 from NCE.NCECriterion import NCECriterion
 from NCE.NCECriterion import NCESoftmaxLoss
@@ -84,6 +85,8 @@ def parse_option():
 
     parser.add_argument('--supplement_pos_neg_txt_path', type=str, default='')
     parser.add_argument('--training_data_cache_method', type=str, default='default', choices=['default', 'memory', 'GPU'], help='where to save training data. \'memory\' or \'GPU\' will load all training data into memory or GPU at begining to speed up data reading at training stage.')
+
+    parser.add_argument('--pretrained_resnet', type=str, default='False',choices=['True','False'])
     opt = parser.parse_args()
 
     iterations = opt.lr_decay_epochs.split(',')
@@ -132,6 +135,8 @@ def parse_option():
 
     if opt.contrastMethod != 'e2e' and opt.contrastMethod != 'membank':
         raise ValueError('contrast method must be e2e or memory bank.')
+
+    print(opt)
 
     return opt
 
@@ -208,7 +213,8 @@ def get_train_loader(args):
 
 def set_model(args, n_data, classInstansSet):
 
-    model = MyAlexNetCMC(args.feat_dim)
+    # model = MyAlexNetCMC(args.feat_dim)
+    model = MyResnet50(args.feat_dim, pretrained=True if args.pretrained_resnet == 'True' else False)
 
     if args.resume:
         if torch.cuda.is_available():
