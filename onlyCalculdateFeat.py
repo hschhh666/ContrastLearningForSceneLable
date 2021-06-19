@@ -12,6 +12,7 @@ import numpy as np
 from torchvision import transforms, datasets
 
 from models.alexnet import MyAlexNetCMC
+from models.resnet50 import MyResnet50
 from dataset import ImageFolderInstance
 from sampleIdx import SampleIndex
 from util import AverageMeter,print_running_time
@@ -111,8 +112,10 @@ def set_model(args):
     else:
         ckpt = torch.load(args.model_path,map_location=torch.device('cpu'))
     featDim = ckpt['opt'].feat_dim
-    model = MyAlexNetCMC(featDim)
+    # model = MyAlexNetCMC(featDim)
+    model = MyResnet50(featDim)
     model.load_state_dict(ckpt['model'])
+    model = model.cuda()
     print("==> loaded checkpoint '{}' (epoch {})".format(args.model_path, ckpt['epoch']))
     print('==> done')
     
