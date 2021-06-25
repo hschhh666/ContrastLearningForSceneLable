@@ -54,6 +54,7 @@ def get_train_val_loader(args):
     train_transform = transforms.Compose([
         # transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
         transforms.Resize((224,224)),
+        transforms.RandomGrayscale(p=1),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
@@ -62,12 +63,13 @@ def get_train_val_loader(args):
     val_transform = transforms.Compose([
         # transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
         transforms.Resize((224,224)),
+        transforms.RandomGrayscale(p=1),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
     ])
 
-    train_dataset = ImageFolderInstance(train_folder, transform=train_transform)
-    val_dataset = ImageFolderInstance(val_folder, transform=val_transform)
+    train_dataset = ImageFolderInstance(args, train_folder, transform=train_transform)
+    val_dataset = ImageFolderInstance(args, val_folder, transform=val_transform)
 
     train_n_data = len(train_dataset)
     val_n_data = len(val_dataset)

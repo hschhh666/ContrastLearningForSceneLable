@@ -83,6 +83,7 @@ def parse_option():
     parser.add_argument('--comment_info', type=str, default='', help='Comment message, donot influence program')
 
     parser.add_argument('--supplement_pos_neg_txt_path', type=str, default='')
+    parser.add_argument('--optical_flow_npy_path', type=str, default='')
     parser.add_argument('--training_data_cache_method', type=str, default='default', choices=['default', 'memory', 'GPU'], help='where to save training data. \'memory\' or \'GPU\' will load all training data into memory or GPU at begining to speed up data reading at training stage.')
     opt = parser.parse_args()
 
@@ -144,7 +145,7 @@ def get_train_loader(args):
 
     train_transform_withRandom = transforms.Compose([
         transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
-        transforms.RandomGrayscale(p=0.5),
+        transforms.RandomGrayscale(p=1),
         transforms.RandomHorizontalFlip(),
         transforms.ColorJitter(0.4, 0.4, 0.4, 0.4),
         transforms.GaussianBlur(9, (0.1,3)),
@@ -164,12 +165,12 @@ def get_train_loader(args):
     # ！！！！！！！！！注意！！！！！！！！！如果数据被预先加载到显存中，则不会有数据增强，因为一旦进入显存后就无法再进行CPU运算了
     # 总结：如果选择将数据一次性加载到显存中，则不会有随机数据增强
     if args.training_data_cache_method == 'default':
-        train_dataset = ImageFolderInstance(data_folder, transform=train_transform_withRandom)
+        train_dataset = ImageFolderInstance(args, data_folder, transform=train_transform_withRandom)
     else:
         if torch.cuda.is_available() and args.training_data_cache_method == 'GPU':
-            train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform_withoutRandom, training_data_cache_method='GPU')
+            train_dataset = ImageFolderInstance_LoadAllImgToMemory(args, data_folder, transform=train_transform_withoutRandom, training_data_cache_method='GPU')
         else:
-            train_dataset = ImageFolderInstance_LoadAllImgToMemory(data_folder, transform=train_transform_withRandom, training_data_cache_method='memory')
+            train_dataset = ImageFolderInstance_LoadAllImgToMemory(args, data_folder, transform=train_transform_withRandom, training_data_cache_method='memory')
             if (not torch.cuda.is_available()) and args.training_data_cache_method == 'GPU':
                 print('CUDA is not is_available, load all training data into memory instead of GPU')
 
@@ -432,12 +433,13 @@ def main():
     print('==> done')
     model.eval()
     
-    print('Calculating features...')
-    onlyCalFeat(model, args)
-    print('Done.\n\n')
     print('Calculating anchor-positive anchor-negative average distance......')
     calSampleDisAndImgCaseStudy(model, args) # 训练结束后，计算锚点-正样本和锚点-负样本间的平均距离，以及进行图像间距离的case study
     print('Done.\n\n')
+    # print('Calculating features...')
+    # onlyCalFeat(model, args)
+    # print('Done.\n\n')
+
     print('Program exit normally.')
 
 if __name__ == '__main__':

@@ -54,6 +54,7 @@ def get_train_val_loader(args):
     train_transform = transforms.Compose([
         # transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
         transforms.Resize((224,224)),
+        transforms.RandomGrayscale(p=1),
         transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
@@ -62,12 +63,13 @@ def get_train_val_loader(args):
     val_transform = transforms.Compose([
         # transforms.RandomResizedCrop(224, scale=(args.crop_low, 1.)),
         transforms.Resize((224,224)),
+        transforms.RandomGrayscale(p=1),
         transforms.ToTensor(),
         transforms.Normalize(mean=mean, std=std)
     ])
 
-    train_dataset = ImageFolderInstance(train_folder, transform=train_transform)
-    val_dataset = ImageFolderInstance(val_folder, transform=val_transform)
+    train_dataset = ImageFolderInstance(args, train_folder, transform=train_transform)
+    val_dataset = ImageFolderInstance(args, val_folder, transform=val_transform)
 
     train_n_data = len(train_dataset)
     val_n_data = len(val_dataset)
@@ -98,8 +100,8 @@ def get_train_val_loader(args):
         tmpSet.add(i)
     val_classInstansSet.append(tmpSet)
 
-    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=args.num_workers, shuffle = False)#这里没必要随机打乱
-    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, num_workers=args.num_workers,shuffle = False)
+    train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=args.batch_size, num_workers=0, shuffle = False)#这里没必要随机打乱
+    val_loader = torch.utils.data.DataLoader(val_dataset, batch_size=args.batch_size, num_workers=0,shuffle = False)
 
 
     return train_classInstansSet, val_classInstansSet, train_loader, val_loader, train_dataset, val_dataset
@@ -316,15 +318,15 @@ def calSampleDisAndImgCaseStudy(model, args): # 供外部调用
     f.write(line+'\n')
     f.close()
 
-    # image case study
-    if torch.cuda.is_available():
-        torch.cuda.empty_cache() #释放部分显存
-    caseNum = 5
-    for i in range(caseNum):
-        # print('ploting case study images {}/{}'.format(i*2+1, caseNum*2))
-        imageCaseStudy(args, train_memory, train_classInstansSet, train_dataset, name= 'train'+str(i))
-        # print('ploting case study images {}/{}'.format(i*2+2, caseNum*2))
-        imageCaseStudy(args, val_memory, val_classInstansSet, val_dataset,name= 'val' + str(i))
+    # # image case study
+    # if torch.cuda.is_available():
+    #     torch.cuda.empty_cache() #释放部分显存
+    # caseNum = 5
+    # for i in range(caseNum):
+    #     # print('ploting case study images {}/{}'.format(i*2+1, caseNum*2))
+    #     imageCaseStudy(args, train_memory, train_classInstansSet, train_dataset, name= 'train'+str(i))
+    #     # print('ploting case study images {}/{}'.format(i*2+2, caseNum*2))
+    #     imageCaseStudy(args, val_memory, val_classInstansSet, val_dataset,name= 'val' + str(i))
 
 if __name__ == '__main__':
     main()

@@ -18,7 +18,7 @@ class alexnet(nn.Module):
     def __init__(self, feat_dim=128):
         super(alexnet, self).__init__()
         # self.anchor_net = alexnet_half(in_channel=3, feat_dim=feat_dim)
-        self.sample_net = alexnet_half(in_channel=3, feat_dim=feat_dim)
+        self.sample_net = alexnet_half(in_channel=2, feat_dim=feat_dim)
 
     def forward(self, sample, layer=8):
         feat_sample = self.sample_net(sample, layer)
