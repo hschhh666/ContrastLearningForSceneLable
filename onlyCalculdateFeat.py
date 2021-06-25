@@ -12,7 +12,7 @@ import numpy as np
 from torchvision import transforms, datasets
 
 from models.alexnet import MyAlexNetCMC
-from dataset import ImageFolderInstance
+from dataset import ImageFolderInstanceForCalAllFeat
 from sampleIdx import SampleIndex
 from util import AverageMeter,print_running_time
 import matplotlib.pyplot as plt
@@ -68,8 +68,8 @@ def get_train_val_loader(args):
         transforms.Normalize(mean=mean, std=std)
     ])
 
-    train_dataset = ImageFolderInstance(args, train_folder, transform=train_transform)
-    val_dataset = ImageFolderInstance(args, val_folder, transform=val_transform)
+    train_dataset = ImageFolderInstanceForCalAllFeat(args, train_folder, transform=train_transform)
+    val_dataset = ImageFolderInstanceForCalAllFeat(args, val_folder, transform=val_transform)
 
     train_n_data = len(train_dataset)
     val_n_data = len(val_dataset)
